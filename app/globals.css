@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #eff5ff;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-border: #d6e2f4;
+  --primary: #0f766e;
+  --primary-strong: #115e59;
+  --text-muted: #334155;
+  --danger: #c1121f;
+  --success: #166534;
 }
 
 @theme inline {
@@ -12,15 +19,221 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-image:
+    radial-gradient(circle at 10% 0%, #d8e8ff 0%, transparent 35%),
+    radial-gradient(circle at 100% 10%, #ffe8d5 0%, transparent 30%);
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app-shell {
+  margin: 0 auto;
+  max-width: 1080px;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.topbar {
+  border: 1px solid var(--surface-border);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--surface) 88%, #f5f9ff);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+}
+
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-kicker {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.brand-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.auth-nav {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.session-email {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.menu-button {
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  transition: all 0.2s ease;
+}
+
+.menu-button:hover {
+  transform: translateY(-1px);
+}
+
+.menu-button.active,
+.menu-button.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #f9fffd;
+}
+
+.menu-button.active:hover,
+.menu-button.primary:hover {
+  background: var(--primary-strong);
+}
+
+.main-content {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.hero-card,
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 18px;
+  box-shadow: 0 12px 35px rgb(15 23 42 / 0.08);
+  padding: 24px;
+}
+
+.hero-card h2 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  margin: 0;
+}
+
+.hero-card p {
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 12px 0 0;
+  max-width: 68ch;
+}
+
+.panel h3 {
+  margin: 0;
+}
+
+.panel-description {
+  color: var(--text-muted);
+  margin: 8px 0 16px;
+}
+
+.status-text {
+  margin: 0;
+}
+
+.status-banner {
+  border-radius: 12px;
+  font-size: 0.9rem;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+}
+
+.status-banner.error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: var(--danger);
+}
+
+.status-banner.success {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: var(--success);
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+
+.form-grid label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.input-field {
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  font: inherit;
+  outline: none;
+  padding: 10px 12px;
+}
+
+.input-field:focus {
+  border-color: color-mix(in oklab, var(--primary) 70%, white);
+  box-shadow: 0 0 0 3px rgb(15 118 110 / 0.15);
+}
+
+.submit-button {
+  background: var(--primary);
+  border: none;
+  border-radius: 12px;
+  color: #f9fffd;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 10px;
+  padding: 11px 16px;
+  transition: background 0.2s ease;
+}
+
+.submit-button:hover {
+  background: var(--primary-strong);
+}
+
+.submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: 14px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .auth-nav {
+    justify-content: flex-start;
+  }
+
+  .hero-card,
+  .panel {
+    padding: 18px;
+  }
 }
