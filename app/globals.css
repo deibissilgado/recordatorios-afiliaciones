@@ -34,10 +34,11 @@ body {
 }
 
 .app-shell {
-  margin: 0 auto;
-  max-width: 1080px;
+  margin: 0;
+  max-width: none;
+  width: 100%;
   min-height: 100vh;
-  padding: 20px;
+  padding: 20px clamp(12px, 2.2vw, 30px);
 }
 
 .topbar {

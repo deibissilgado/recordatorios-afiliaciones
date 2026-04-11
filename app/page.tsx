@@ -1223,12 +1223,14 @@ export default function Home() {
 
 const styles = `
   .app-shell {
+    width: 100%;
+    max-width: none;
     min-height: 100vh;
     background:
       radial-gradient(circle at 10% -20%, #bfdbfe 0%, transparent 35%),
       radial-gradient(circle at 90% 5%, #bbf7d0 0%, transparent 28%),
       linear-gradient(140deg, #0f172a 0%, #1e293b 100%);
-    padding: 20px;
+    padding: clamp(12px, 2.2vw, 30px);
   }
 
   .topbar {
@@ -1262,9 +1264,10 @@ const styles = `
 
   .workspace {
     width: 100%;
+    max-width: none;
     margin: 14px 0 0;
     display: grid;
-    grid-template-columns: 230px 1fr;
+    grid-template-columns: 250px minmax(0, 1fr);
     gap: 14px;
   }
 
@@ -1304,6 +1307,7 @@ const styles = `
   .content-area {
     display: grid;
     gap: 10px;
+    min-width: 0;
   }
 
   .search-shell {
@@ -1352,6 +1356,7 @@ const styles = `
     border: 1px solid #dbeafe;
     padding: 18px;
     box-shadow: 0 16px 38px rgba(2, 6, 23, 0.18);
+    width: 100%;
   }
 
   .content-card h3 {
