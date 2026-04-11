@@ -39,6 +39,16 @@ Configura estas variables en el proyecto de Vercel:
 3. Guarda SID, token y remitente (`From`) en variables de entorno.
 4. Verifica que los números destino puedan recibir mensajes en tu configuración (sandbox requiere opt-in).
 
+## 3.1) Recuperación de contraseña (Supabase Auth)
+
+Para que funcione `Recuperar clave`:
+
+1. En Supabase ve a `Authentication > URL Configuration`.
+2. Define `Site URL` con el dominio de Vercel (o localhost en desarrollo).
+3. Agrega como redirect permitido:
+   - `https://TU_DOMINIO/auth/reset-password`
+   - `http://localhost:3000/auth/reset-password` (desarrollo)
+
 ## 4) Programar ejecución automática (Vercel Cron)
 
 Crea un cron diario (ejemplo 9:00 AM Bogotá) que llame:
