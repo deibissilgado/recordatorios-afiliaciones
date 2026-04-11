@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import { traducirErrorConContexto, traducirMensajeError } from '@/lib/mensajes'
 import type { Session } from '@supabase/supabase-js'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
@@ -161,7 +162,7 @@ export default function Home() {
       .limit(300)
 
     if (error) {
-      setClientesError(`No se pudieron cargar clientes: ${error.message}`)
+      setClientesError(traducirErrorConContexto('No se pudieron cargar clientes', error.message))
     } else {
       setClientes((data ?? []) as Cliente[])
     }
@@ -199,7 +200,7 @@ export default function Home() {
     }
 
     if (!columnasNuevasNoExisten(avanzada.error.message)) {
-      throw new Error(avanzada.error.message)
+      throw new Error(traducirMensajeError(avanzada.error.message))
     }
 
     const basica = await supabase
@@ -210,7 +211,7 @@ export default function Home() {
       .limit(1)
 
     if (basica.error) {
-      throw new Error(basica.error.message)
+      throw new Error(traducirMensajeError(basica.error.message))
     }
 
     const filaBasica = basica.data?.[0] as {
@@ -269,7 +270,7 @@ export default function Home() {
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
 
         if (error) {
-          setAuthError(error.message)
+          setAuthError(traducirMensajeError(error.message))
           return
         }
 
@@ -278,7 +279,7 @@ export default function Home() {
         const { data, error } = await supabase.auth.signUp({ email, password })
 
         if (error) {
-          setAuthError(error.message)
+          setAuthError(traducirMensajeError(error.message))
           return
         }
 
@@ -291,7 +292,7 @@ export default function Home() {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
 
         if (error) {
-          setAuthError(error.message)
+          setAuthError(traducirMensajeError(error.message))
           return
         }
 
@@ -309,7 +310,7 @@ export default function Home() {
     const { error } = await supabase.auth.signOut()
 
     if (error) {
-      setAuthError(error.message)
+      setAuthError(traducirMensajeError(error.message))
       return
     }
 
@@ -374,7 +375,7 @@ export default function Home() {
       .single()
 
     if (errorCliente) {
-      setClientesError(errorCliente.message)
+      setClientesError(traducirMensajeError(errorCliente.message))
       setCrearLoading(false)
       return
     }
@@ -403,7 +404,12 @@ export default function Home() {
           .insert([baseAfiliacion])
 
         if (errorAfiliacionBasica) {
-          setClientesError(`Cliente creado, pero afiliación falló: ${errorAfiliacionBasica.message}`)
+          setClientesError(
+            traducirErrorConContexto(
+              'Cliente creado, pero afiliación falló',
+              errorAfiliacionBasica.message
+            )
+          )
           setCrearLoading(false)
           return
         }
@@ -412,7 +418,9 @@ export default function Home() {
           'Cliente y afiliación creados. Ejecuta la migración SQL para activar recordatorios avanzados.'
         )
       } else {
-        setClientesError(`Cliente creado, pero afiliación falló: ${errorAfiliacion.message}`)
+        setClientesError(
+          traducirErrorConContexto('Cliente creado, pero afiliación falló', errorAfiliacion.message)
+        )
         setCrearLoading(false)
         return
       }
@@ -449,7 +457,9 @@ export default function Home() {
       .eq('id', editClienteId)
 
     if (errorCliente) {
-      setClientesError(`No se pudo actualizar el cliente: ${errorCliente.message}`)
+      setClientesError(
+        traducirErrorConContexto('No se pudo actualizar el cliente', errorCliente.message)
+      )
       setEditarLoading(false)
       return
     }
@@ -477,7 +487,9 @@ export default function Home() {
 
       if (errorAfiliacion) {
         if (!columnasNuevasNoExisten(errorAfiliacion.message)) {
-          setClientesError(`No se pudo actualizar afiliación: ${errorAfiliacion.message}`)
+          setClientesError(
+            traducirErrorConContexto('No se pudo actualizar afiliación', errorAfiliacion.message)
+          )
           setEditarLoading(false)
           return
         }
@@ -488,7 +500,9 @@ export default function Home() {
           .eq('id', editAfiliacionId)
 
         if (errorBasica) {
-          setClientesError(`No se pudo actualizar afiliación básica: ${errorBasica.message}`)
+          setClientesError(
+            traducirErrorConContexto('No se pudo actualizar afiliación básica', errorBasica.message)
+          )
           setEditarLoading(false)
           return
         }
@@ -509,7 +523,12 @@ export default function Home() {
 
       if (insertAfiliacionError) {
         if (!columnasNuevasNoExisten(insertAfiliacionError.message)) {
-          setClientesError(`Cliente actualizado, pero no se pudo crear afiliación: ${insertAfiliacionError.message}`)
+          setClientesError(
+            traducirErrorConContexto(
+              'Cliente actualizado, pero no se pudo crear afiliación',
+              insertAfiliacionError.message
+            )
+          )
           setEditarLoading(false)
           return
         }
@@ -521,7 +540,9 @@ export default function Home() {
           .single()
 
         if (errorBasica) {
-          setClientesError(`Cliente actualizado, pero afiliación falló: ${errorBasica.message}`)
+          setClientesError(
+            traducirErrorConContexto('Cliente actualizado, pero afiliación falló', errorBasica.message)
+          )
           setEditarLoading(false)
           return
         }
@@ -560,7 +581,9 @@ export default function Home() {
       .eq('cliente_id', cliente.id)
 
     if (afiliacionesError) {
-      setClientesError(`No se pudieron consultar afiliaciones: ${afiliacionesError.message}`)
+      setClientesError(
+        traducirErrorConContexto('No se pudieron consultar afiliaciones', afiliacionesError.message)
+      )
       setClienteActionLoading(false)
       return
     }
@@ -574,7 +597,9 @@ export default function Home() {
         .in('afiliacion_id', afiliacionIds)
 
       if (recordatoriosError) {
-        setClientesError(`No se pudieron borrar recordatorios: ${recordatoriosError.message}`)
+        setClientesError(
+          traducirErrorConContexto('No se pudieron borrar recordatorios', recordatoriosError.message)
+        )
         setClienteActionLoading(false)
         return
       }
@@ -585,7 +610,12 @@ export default function Home() {
         .eq('cliente_id', cliente.id)
 
       if (borrarAfiliacionesError) {
-        setClientesError(`No se pudieron borrar afiliaciones: ${borrarAfiliacionesError.message}`)
+        setClientesError(
+          traducirErrorConContexto(
+            'No se pudieron borrar afiliaciones',
+            borrarAfiliacionesError.message
+          )
+        )
         setClienteActionLoading(false)
         return
       }
@@ -595,7 +625,9 @@ export default function Home() {
     const { error: borrarClienteError } = await supabase.from('clientes').delete().eq('id', cliente.id)
 
     if (borrarClienteError) {
-      setClientesError(`No se pudo borrar el cliente: ${borrarClienteError.message}`)
+      setClientesError(
+        traducirErrorConContexto('No se pudo borrar el cliente', borrarClienteError.message)
+      )
       setClienteActionLoading(false)
       return
     }

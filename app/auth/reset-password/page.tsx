@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import { traducirMensajeError } from '@/lib/mensajes'
 import Link from 'next/link'
 import { type FormEvent, useEffect, useState } from 'react'
 
@@ -22,7 +23,7 @@ export default function ResetPasswordPage() {
       if (!mounted) return
 
       if (sessionError) {
-        setError(sessionError.message)
+        setError(traducirMensajeError(sessionError.message))
         setHasRecoverySession(false)
         return
       }
@@ -70,7 +71,7 @@ export default function ResetPasswordPage() {
     })
 
     if (updateError) {
-      setError(updateError.message)
+      setError(traducirMensajeError(updateError.message))
       setLoading(false)
       return
     }
