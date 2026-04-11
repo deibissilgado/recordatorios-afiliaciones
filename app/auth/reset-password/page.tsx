@@ -5,10 +5,48 @@ import { traducirMensajeError } from '@/lib/mensajes'
 import Link from 'next/link'
 import { type FormEvent, useEffect, useState } from 'react'
 
+// Renderiza el icono de "ojo" abierto/cerrado para mostrar u ocultar contraseñas.
+function EyeIcon({ abierto }: { abierto: boolean }) {
+  if (abierto) {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7z" />
+      <path d="M4 4l16 16" />
+      <path d="M8 3l-1-2M12 2V1M16 3l1-2" />
+    </svg>
+  )
+}
+
 export default function ResetPasswordPage() {
   const [hasRecoverySession, setHasRecoverySession] = useState<boolean | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [mostrarNewPassword, setMostrarNewPassword] = useState(false)
+  const [mostrarConfirmPassword, setMostrarConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -57,7 +95,25 @@ export default function ResetPasswordPage() {
       }
 
       const currentUrl = new URL(window.location.href)
+      const tokenHash = currentUrl.searchParams.get('token_hash')
+      const queryType = currentUrl.searchParams.get('type')
       const code = currentUrl.searchParams.get('code')
+
+      // Maneja enlaces que llegan con token_hash en query (?token_hash=...&type=recovery).
+      if (tokenHash && queryType === 'recovery') {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          type: 'recovery',
+          token_hash: tokenHash,
+        })
+
+        if (verifyError) {
+          setError(traducirMensajeError(verifyError.message))
+          return false
+        }
+
+        limpiarUrlDespuesDeAuth()
+        return true
+      }
 
       // Maneja enlaces que llegan con código (PKCE) en query (?code=...).
       if (code) {
@@ -156,26 +212,48 @@ export default function ResetPasswordPage() {
         ) : hasRecoverySession ? (
           <form className="form-grid" onSubmit={actualizarContrasena}>
             <label htmlFor="newPassword">Nueva contraseña</label>
-            <input
-              id="newPassword"
-              type="password"
-              className="input"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              minLength={6}
-              required
-            />
+            <div className="password-field">
+              <input
+                id="newPassword"
+                type={mostrarNewPassword ? 'text' : 'password'}
+                className="input"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                minLength={6}
+                required
+              />
+              <button
+                type="button"
+                className="eye-btn"
+                onClick={() => setMostrarNewPassword((prev) => !prev)}
+                aria-label={mostrarNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                title={mostrarNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                <EyeIcon abierto={mostrarNewPassword} />
+              </button>
+            </div>
 
             <label htmlFor="confirmPassword">Confirmar nueva contraseña</label>
-            <input
-              id="confirmPassword"
-              type="password"
-              className="input"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              minLength={6}
-              required
-            />
+            <div className="password-field">
+              <input
+                id="confirmPassword"
+                type={mostrarConfirmPassword ? 'text' : 'password'}
+                className="input"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                minLength={6}
+                required
+              />
+              <button
+                type="button"
+                className="eye-btn"
+                onClick={() => setMostrarConfirmPassword((prev) => !prev)}
+                aria-label={mostrarConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                title={mostrarConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                <EyeIcon abierto={mostrarConfirmPassword} />
+              </button>
+            </div>
 
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Guardando...' : 'Actualizar contraseña'}
@@ -243,6 +321,40 @@ export default function ResetPasswordPage() {
           color: #0f172a;
           background: #ffffff;
           outline: none;
+        }
+
+        .password-field {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .password-field .input {
+          width: 100%;
+          padding-right: 44px;
+        }
+
+        .eye-btn {
+          position: absolute;
+          right: 8px;
+          display: grid;
+          place-items: center;
+          width: 30px;
+          height: 30px;
+          border: none;
+          border-radius: 8px;
+          background: transparent;
+          color: #334155;
+          cursor: pointer;
+        }
+
+        .eye-btn:hover {
+          background: #e2e8f0;
+        }
+
+        .eye-btn svg {
+          width: 18px;
+          height: 18px;
         }
 
         .input:focus {

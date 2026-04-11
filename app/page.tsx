@@ -35,13 +35,13 @@ function hoyIsoDate() {
 }
 
 function getAppBaseUrl() {
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim()
   if (fromEnv) {
     return fromEnv.replace(/\/$/, '')
-  }
-
-  if (typeof window !== 'undefined') {
-    return window.location.origin
   }
 
   return ''
@@ -55,6 +55,42 @@ function columnasNuevasNoExisten(message: string) {
   )
 }
 
+// Renderiza el icono de "ojo" abierto/cerrado para mostrar u ocultar contraseñas.
+function EyeIcon({ abierto }: { abierto: boolean }) {
+  if (abierto) {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7z" />
+      <path d="M4 4l16 16" />
+      <path d="M8 3l-1-2M12 2V1M16 3l1-2" />
+    </svg>
+  )
+}
+
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
@@ -62,6 +98,7 @@ export default function Home() {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [mostrarPassword, setMostrarPassword] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
   const [authMessage, setAuthMessage] = useState('')
@@ -102,6 +139,25 @@ export default function Home() {
   const [editEstadoAfiliacion, setEditEstadoAfiliacion] = useState('activa')
   const [editWhatsappActivo, setEditWhatsappActivo] = useState(true)
   const [editarLoading, setEditarLoading] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const { pathname, search, hash } = window.location
+    const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash)
+    const queryParams = new URLSearchParams(search)
+
+    const hasRecoveryType =
+      hashParams.get('type') === 'recovery' || queryParams.get('type') === 'recovery'
+    const hasRecoveryTokens =
+      Boolean(hashParams.get('access_token') && hashParams.get('refresh_token')) ||
+      Boolean(queryParams.get('token_hash'))
+
+    // Si el enlace de recuperación cae en "/", lo reenviamos a la pantalla correcta.
+    if (pathname === '/' && (hasRecoveryType || hasRecoveryTokens)) {
+      window.location.replace(`/auth/reset-password${search}${hash}`)
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -251,6 +307,7 @@ export default function Home() {
     setAuthMode(mode)
     setAuthError('')
     setAuthMessage('')
+    setMostrarPassword(false)
     if (mode === 'recover') {
       setPassword('')
     }
@@ -1028,15 +1085,26 @@ export default function Home() {
             ) : (
               <>
                 <label htmlFor="password">Contraseña</label>
-                <input
-                  id="password"
-                  type="password"
-                  className="input"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  minLength={6}
-                  required
-                />
+                <div className="password-field">
+                  <input
+                    id="password"
+                    type={mostrarPassword ? 'text' : 'password'}
+                    className="input"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    minLength={6}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="eye-btn"
+                    onClick={() => setMostrarPassword((prev) => !prev)}
+                    aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    title={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    <EyeIcon abierto={mostrarPassword} />
+                  </button>
+                </div>
               </>
             )}
 
@@ -1164,8 +1232,8 @@ const styles = `
   }
 
   .topbar {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     padding: 14px 18px;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.12);
@@ -1193,8 +1261,8 @@ const styles = `
   }
 
   .workspace {
-    max-width: 1200px;
-    margin: 14px auto 0;
+    width: 100%;
+    margin: 14px 0 0;
     display: grid;
     grid-template-columns: 230px 1fr;
     gap: 14px;
@@ -1326,6 +1394,40 @@ const styles = `
     color: #0f172a;
     background: #ffffff;
     outline: none;
+  }
+
+  .password-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .password-field .input {
+    width: 100%;
+    padding-right: 44px;
+  }
+
+  .eye-btn {
+    position: absolute;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #334155;
+    cursor: pointer;
+  }
+
+  .eye-btn:hover {
+    background: #e2e8f0;
+  }
+
+  .eye-btn svg {
+    width: 18px;
+    height: 18px;
   }
 
   .input:focus,
