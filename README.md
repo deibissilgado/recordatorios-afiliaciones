@@ -1,5 +1,12 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Recordatorios Por WhatsApp
+
+La guía completa de arquitectura y despliegue para `Vercel + Supabase + Twilio` está en:
+
+- `docs/CONFIGURACION_RECORDATORIOS_WHATSAPP.md`
+- `supabase/sql/001_recordatorios_whatsapp.sql`
+
 ## Getting Started
 
 First, run the development server:

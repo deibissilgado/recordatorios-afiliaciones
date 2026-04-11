@@ -2,9 +2,16 @@
 
 import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 
 type AuthMode = 'login' | 'signup'
+type Cliente = {
+  id: string
+  nombre: string
+  documento: string
+  telefono: string | null
+  created_at: string
+}
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null)
@@ -22,6 +29,23 @@ export default function Home() {
   const [clientLoading, setClientLoading] = useState(false)
   const [clientError, setClientError] = useState('')
   const [clientMessage, setClientMessage] = useState('')
+  const [diaRecordatorio, setDiaRecordatorio] = useState(20)
+  const [plantillaMensaje, setPlantillaMensaje] = useState(
+    'Hola {{nombre}}, recuerda renovar tu afiliación. Fecha sugerida: {{fecha}}.'
+  )
+  const [fechaInicioAfiliacion, setFechaInicioAfiliacion] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  )
+  const [fechaFinAfiliacion, setFechaFinAfiliacion] = useState('')
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [clientesLoading, setClientesLoading] = useState(false)
+  const [clientesError, setClientesError] = useState('')
+  const [clientesMessage, setClientesMessage] = useState('')
+  const [clienteEditId, setClienteEditId] = useState<string | null>(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editDocumento, setEditDocumento] = useState('')
+  const [editTelefono, setEditTelefono] = useState('')
+  const [clienteActionLoading, setClienteActionLoading] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -51,6 +75,148 @@ export default function Home() {
       data.subscription.unsubscribe()
     }
   }, [])
+
+  const cargarClientes = useCallback(async () => {
+    if (!session) {
+      setClientes([])
+      return
+    }
+
+    setClientesLoading(true)
+    setClientesError('')
+
+    // Carga el listado principal de clientes para gestionar edición y borrado.
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('id,nombre,documento,telefono,created_at')
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    if (error) {
+      setClientesError(`No se pudieron cargar clientes: ${error.message}`)
+    } else {
+      setClientes((data ?? []) as Cliente[])
+    }
+
+    setClientesLoading(false)
+  }, [session])
+
+  useEffect(() => {
+    void cargarClientes()
+  }, [cargarClientes])
+
+  const iniciarEdicionCliente = (cliente: Cliente) => {
+    setClienteEditId(cliente.id)
+    setEditNombre(cliente.nombre)
+    setEditDocumento(cliente.documento)
+    setEditTelefono(cliente.telefono ?? '')
+    setClientesError('')
+    setClientesMessage('')
+  }
+
+  const cancelarEdicionCliente = () => {
+    setClienteEditId(null)
+    setEditNombre('')
+    setEditDocumento('')
+    setEditTelefono('')
+  }
+
+  const guardarEdicionCliente = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!clienteEditId) return
+
+    setClienteActionLoading(true)
+    setClientesError('')
+    setClientesMessage('')
+
+    // Actualiza datos básicos del cliente manteniendo el mismo registro.
+    const { error } = await supabase
+      .from('clientes')
+      .update({
+        nombre: editNombre,
+        documento: editDocumento,
+        telefono: editTelefono,
+      })
+      .eq('id', clienteEditId)
+
+    if (error) {
+      setClientesError(`No se pudo actualizar el cliente: ${error.message}`)
+      setClienteActionLoading(false)
+      return
+    }
+
+    setClientesMessage('Cliente actualizado correctamente.')
+    cancelarEdicionCliente()
+    await cargarClientes()
+    setClienteActionLoading(false)
+  }
+
+  const borrarCliente = async (cliente: Cliente) => {
+    const confirmacion = window.confirm(
+      `¿Seguro que deseas borrar a ${cliente.nombre}? También se borrarán afiliaciones y recordatorios asociados.`
+    )
+
+    if (!confirmacion) return
+
+    setClienteActionLoading(true)
+    setClientesError('')
+    setClientesMessage('')
+
+    // 1) Busca afiliaciones del cliente para limpiar primero sus recordatorios relacionados.
+    const { data: afiliaciones, error: afiliacionesError } = await supabase
+      .from('afiliaciones')
+      .select('id')
+      .eq('cliente_id', cliente.id)
+
+    if (afiliacionesError) {
+      setClientesError(`No se pudieron consultar afiliaciones: ${afiliacionesError.message}`)
+      setClienteActionLoading(false)
+      return
+    }
+
+    const afiliacionIds = (afiliaciones ?? []).map((afiliacion) => afiliacion.id)
+
+    if (afiliacionIds.length > 0) {
+      const { error: recordatoriosError } = await supabase
+        .from('recordatorios')
+        .delete()
+        .in('afiliacion_id', afiliacionIds)
+
+      if (recordatoriosError) {
+        setClientesError(`No se pudieron borrar recordatorios: ${recordatoriosError.message}`)
+        setClienteActionLoading(false)
+        return
+      }
+
+      const { error: borrarAfiliacionesError } = await supabase
+        .from('afiliaciones')
+        .delete()
+        .eq('cliente_id', cliente.id)
+
+      if (borrarAfiliacionesError) {
+        setClientesError(`No se pudieron borrar afiliaciones: ${borrarAfiliacionesError.message}`)
+        setClienteActionLoading(false)
+        return
+      }
+    }
+
+    // 2) Borra el cliente después de limpiar dependencias.
+    const { error: borrarClienteError } = await supabase.from('clientes').delete().eq('id', cliente.id)
+
+    if (borrarClienteError) {
+      setClientesError(`No se pudo borrar el cliente: ${borrarClienteError.message}`)
+      setClienteActionLoading(false)
+      return
+    }
+
+    setClientesMessage('Cliente borrado correctamente.')
+    if (clienteEditId === cliente.id) {
+      cancelarEdicionCliente()
+    }
+    await cargarClientes()
+    setClienteActionLoading(false)
+  }
 
   const cambiarModo = (mode: AuthMode) => {
     setAuthMode(mode)
@@ -115,6 +281,10 @@ export default function Home() {
     setPassword('')
     setClientMessage('')
     setClientError('')
+    setClientes([])
+    setClientesError('')
+    setClientesMessage('')
+    cancelarEdicionCliente()
   }
 
   const guardarCliente = async (event: FormEvent<HTMLFormElement>) => {
@@ -129,17 +299,76 @@ export default function Home() {
     setClientMessage('')
     setClientLoading(true)
 
-    const { error } = await supabase.from('clientes').insert([{ nombre, documento, telefono }])
+    const { data: nuevoCliente, error: errorCliente } = await supabase
+      .from('clientes')
+      .insert([{ nombre, documento, telefono }])
+      .select('id')
+      .single()
 
-    if (error) {
-      setClientError(error.message)
-    } else {
-      setClientMessage('Cliente guardado correctamente.')
-      setNombre('')
-      setDocumento('')
-      setTelefono('')
+    if (errorCliente) {
+      setClientError(errorCliente.message)
+      setClientLoading(false)
+      return
     }
 
+    const baseAfiliacion = {
+      cliente_id: nuevoCliente.id,
+      fecha_inicio: fechaInicioAfiliacion || new Date().toISOString().slice(0, 10),
+      fecha_fin: fechaFinAfiliacion || null,
+      estado: 'activa',
+    }
+
+    const { error: errorAfiliacion } = await supabase.from('afiliaciones').insert([
+      {
+        ...baseAfiliacion,
+        dia_recordatorio: diaRecordatorio,
+        plantilla_mensaje: plantillaMensaje,
+        whatsapp_activo: true,
+      },
+    ])
+
+    if (errorAfiliacion) {
+      // Compatibilidad temporal: permite guardar afiliación básica si aún no aplicaste la migración.
+      const columnasNuevasNoExisten =
+        errorAfiliacion.message.includes('dia_recordatorio') ||
+        errorAfiliacion.message.includes('plantilla_mensaje') ||
+        errorAfiliacion.message.includes('whatsapp_activo')
+
+      if (columnasNuevasNoExisten) {
+        const { error: errorAfiliacionBasica } = await supabase
+          .from('afiliaciones')
+          .insert([baseAfiliacion])
+
+        if (errorAfiliacionBasica) {
+          setClientError(`Cliente creado, pero afiliación falló: ${errorAfiliacionBasica.message}`)
+          setClientLoading(false)
+          return
+        }
+
+        setClientMessage(
+          'Cliente y afiliación creados. Ejecuta la migración SQL para activar recordatorios automáticos.'
+        )
+      } else {
+        setClientError(`Cliente creado, pero afiliación falló: ${errorAfiliacion.message}`)
+        setClientLoading(false)
+        return
+      }
+    } else {
+      setClientMessage('Cliente y afiliación creados correctamente.')
+    }
+
+    setNombre('')
+    setDocumento('')
+    setTelefono('')
+    setDiaRecordatorio(20)
+    setPlantillaMensaje(
+      'Hola {{nombre}}, recuerda renovar tu afiliación. Fecha sugerida: {{fecha}}.'
+    )
+    setFechaInicioAfiliacion(new Date().toISOString().slice(0, 10))
+    setFechaFinAfiliacion('')
+    setClientesMessage('Nuevo cliente agregado al listado.')
+
+    await cargarClientes()
     setClientLoading(false)
   }
 
@@ -238,10 +467,160 @@ export default function Home() {
                     required
                   />
 
+                  <label htmlFor="diaRecordatorio">Día de recordatorio mensual</label>
+                  <input
+                    id="diaRecordatorio"
+                    type="number"
+                    min={1}
+                    max={28}
+                    className="input"
+                    value={diaRecordatorio}
+                    onChange={(event) => setDiaRecordatorio(Number(event.target.value) || 20)}
+                    required
+                  />
+
+                  <label htmlFor="fechaInicioAfiliacion">Fecha inicio de afiliación</label>
+                  <input
+                    id="fechaInicioAfiliacion"
+                    type="date"
+                    className="input"
+                    value={fechaInicioAfiliacion}
+                    onChange={(event) => setFechaInicioAfiliacion(event.target.value)}
+                    required
+                  />
+
+                  <label htmlFor="fechaFinAfiliacion">Fecha fin (opcional)</label>
+                  <input
+                    id="fechaFinAfiliacion"
+                    type="date"
+                    className="input"
+                    value={fechaFinAfiliacion}
+                    onChange={(event) => setFechaFinAfiliacion(event.target.value)}
+                  />
+
+                  <label htmlFor="plantillaMensaje">Plantilla de mensaje</label>
+                  <textarea
+                    id="plantillaMensaje"
+                    className="textarea"
+                    rows={4}
+                    value={plantillaMensaje}
+                    onChange={(event) => setPlantillaMensaje(event.target.value)}
+                    required
+                  />
+                  <p className="muted-note">
+                    Variables disponibles: <code>{'{{nombre}}'}</code>,{' '}
+                    <code>{'{{fecha}}'}</code>, <code>{'{{mes}}'}</code>.
+                  </p>
+
                   <button type="submit" className="btn btn-primary btn-block" disabled={clientLoading}>
-                    {clientLoading ? 'Guardando...' : 'Guardar cliente'}
+                    {clientLoading ? 'Guardando...' : 'Guardar cliente y afiliación'}
                   </button>
                 </form>
+
+                <div className="clientes-section">
+                  <div className="clientes-head">
+                    <h4>Clientes registrados</h4>
+                    <button
+                      type="button"
+                      className="btn btn-soft"
+                      onClick={() => void cargarClientes()}
+                      disabled={clientesLoading || clienteActionLoading}
+                    >
+                      Actualizar lista
+                    </button>
+                  </div>
+
+                  {clientesError ? <p className="status error">{clientesError}</p> : null}
+                  {clientesMessage ? <p className="status success">{clientesMessage}</p> : null}
+
+                  {clientesLoading ? (
+                    <p className="muted">Cargando clientes...</p>
+                  ) : clientes.length === 0 ? (
+                    <p className="muted">Aún no hay clientes registrados.</p>
+                  ) : (
+                    <ul className="clientes-list">
+                      {clientes.map((cliente) => (
+                        <li key={cliente.id} className="cliente-item">
+                          <div className="cliente-row">
+                            <div>
+                              <p className="cliente-name">{cliente.nombre}</p>
+                              <p className="cliente-meta">
+                                Documento: {cliente.documento} | Teléfono: {cliente.telefono ?? 'N/A'}
+                              </p>
+                            </div>
+                            <div className="cliente-actions">
+                              <button
+                                type="button"
+                                className="btn btn-soft"
+                                onClick={() => iniciarEdicionCliente(cliente)}
+                                disabled={clienteActionLoading}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={() => void borrarCliente(cliente)}
+                                disabled={clienteActionLoading}
+                              >
+                                Borrar
+                              </button>
+                            </div>
+                          </div>
+
+                          {clienteEditId === cliente.id ? (
+                            <form className="form cliente-edit-form" onSubmit={guardarEdicionCliente}>
+                              <label htmlFor={`editNombre-${cliente.id}`}>Nombre</label>
+                              <input
+                                id={`editNombre-${cliente.id}`}
+                                className="input"
+                                value={editNombre}
+                                onChange={(event) => setEditNombre(event.target.value)}
+                                required
+                              />
+
+                              <label htmlFor={`editDocumento-${cliente.id}`}>Documento</label>
+                              <input
+                                id={`editDocumento-${cliente.id}`}
+                                className="input"
+                                value={editDocumento}
+                                onChange={(event) => setEditDocumento(event.target.value)}
+                                required
+                              />
+
+                              <label htmlFor={`editTelefono-${cliente.id}`}>Teléfono</label>
+                              <input
+                                id={`editTelefono-${cliente.id}`}
+                                className="input"
+                                value={editTelefono}
+                                onChange={(event) => setEditTelefono(event.target.value)}
+                                required
+                              />
+
+                              <div className="edit-actions">
+                                <button
+                                  type="submit"
+                                  className="btn btn-primary"
+                                  disabled={clienteActionLoading}
+                                >
+                                  Guardar cambios
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-soft"
+                                  onClick={cancelarEdicionCliente}
+                                  disabled={clienteActionLoading}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </form>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </>
             ) : (
               <>
@@ -409,6 +788,80 @@ export default function Home() {
           color: #0f172a;
         }
 
+        .clientes-section {
+          margin-top: 20px;
+          border-top: 1px solid #e2e8f0;
+          padding-top: 16px;
+        }
+
+        .clientes-head {
+          align-items: center;
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .clientes-head h4 {
+          margin: 0;
+          font-size: 1.05rem;
+          color: #0f172a;
+        }
+
+        .clientes-list {
+          display: grid;
+          gap: 12px;
+          margin: 0;
+          padding: 0;
+        }
+
+        .cliente-item {
+          border: 1px solid #dbeafe;
+          border-radius: 14px;
+          padding: 12px;
+          list-style: none;
+          background: #f8fbff;
+        }
+
+        .cliente-row {
+          align-items: center;
+          display: flex;
+          gap: 10px;
+          justify-content: space-between;
+        }
+
+        .cliente-name {
+          margin: 0;
+          font-size: 0.98rem;
+          font-weight: 800;
+          color: #0f172a;
+        }
+
+        .cliente-meta {
+          margin: 4px 0 0;
+          color: #475569;
+          font-size: 0.85rem;
+        }
+
+        .cliente-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .cliente-edit-form {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px dashed #cbd5e1;
+        }
+
+        .edit-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 8px;
+          flex-wrap: wrap;
+        }
+
         .muted {
           margin: 8px 0 18px;
           color: #475569;
@@ -455,9 +908,34 @@ export default function Home() {
           color: #0f172a;
         }
 
+        .textarea {
+          border: 1px solid #cbd5e1;
+          border-radius: 11px;
+          padding: 11px 12px;
+          font-size: 0.95rem;
+          outline: none;
+          transition: all 0.18s ease;
+          background: #ffffff;
+          color: #0f172a;
+          min-height: 105px;
+          resize: vertical;
+        }
+
         .input:focus {
           border-color: #14b8a6;
           box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.22);
+        }
+
+        .textarea:focus {
+          border-color: #14b8a6;
+          box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.22);
+        }
+
+        .muted-note {
+          margin: 0 0 2px;
+          font-size: 0.82rem;
+          color: #64748b;
+          line-height: 1.4;
         }
 
         .btn {
@@ -500,6 +978,26 @@ export default function Home() {
           background: linear-gradient(120deg, #115e59 0%, #0f766e 100%);
         }
 
+        .btn-soft {
+          background: #e2e8f0;
+          border-color: #cbd5e1;
+          color: #0f172a;
+        }
+
+        .btn-soft:hover {
+          background: #cbd5e1;
+        }
+
+        .btn-danger {
+          background: #fee2e2;
+          border-color: #fecaca;
+          color: #b91c1c;
+        }
+
+        .btn-danger:hover {
+          background: #fecaca;
+        }
+
         .btn-block {
           margin-top: 10px;
           width: 100%;
@@ -530,6 +1028,11 @@ export default function Home() {
           .hero-card,
           .panel-card {
             padding: 18px;
+          }
+
+          .cliente-row {
+            align-items: flex-start;
+            flex-direction: column;
           }
         }
       `}</style>
