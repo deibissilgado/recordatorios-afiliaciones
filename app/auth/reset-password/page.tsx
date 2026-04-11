@@ -16,8 +16,69 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     let mounted = true
 
+    const limpiarUrlDespuesDeAuth = () => {
+      if (typeof window === 'undefined') return
+
+      const url = new URL(window.location.href)
+      url.hash = ''
+      url.searchParams.delete('code')
+      url.searchParams.delete('type')
+      url.searchParams.delete('error')
+      url.searchParams.delete('error_code')
+      url.searchParams.delete('error_description')
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    const restaurarSesionDesdeUrl = async () => {
+      if (typeof window === 'undefined') return false
+
+      const hash = window.location.hash?.startsWith('#')
+        ? window.location.hash.slice(1)
+        : window.location.hash
+      const hashParams = new URLSearchParams(hash)
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const hashType = hashParams.get('type')
+
+      // Maneja enlaces que llegan con tokens en el hash (#access_token=...).
+      if (accessToken && refreshToken && (hashType === 'recovery' || hashType === 'signup')) {
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+
+        if (setSessionError) {
+          setError(traducirMensajeError(setSessionError.message))
+          return false
+        }
+
+        limpiarUrlDespuesDeAuth()
+        return true
+      }
+
+      const currentUrl = new URL(window.location.href)
+      const code = currentUrl.searchParams.get('code')
+
+      // Maneja enlaces que llegan con código (PKCE) en query (?code=...).
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (exchangeError) {
+          setError(traducirMensajeError(exchangeError.message))
+          return false
+        }
+
+        limpiarUrlDespuesDeAuth()
+        return true
+      }
+
+      return false
+    }
+
     const validarSesionRecuperacion = async () => {
-      // Verifica si el enlace de recuperación abrió una sesión válida de Supabase.
+      // Intenta restaurar sesión desde el enlace y luego valida sesión activa.
+      await restaurarSesionDesdeUrl()
+
       const { data, error: sessionError } = await supabase.auth.getSession()
 
       if (!mounted) return

@@ -34,6 +34,19 @@ function hoyIsoDate() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function getAppBaseUrl() {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, '')
+  }
+
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+
+  return ''
+}
+
 function columnasNuevasNoExisten(message: string) {
   return (
     message.includes('dia_recordatorio') ||
@@ -262,10 +275,8 @@ export default function Home() {
     try {
       if (authMode === 'recover') {
         // Envía correo de recuperación a una pantalla segura para actualizar contraseña.
-        const redirectTo =
-          typeof window !== 'undefined'
-            ? `${window.location.origin}/auth/reset-password`
-            : undefined
+        const appBaseUrl = getAppBaseUrl()
+        const redirectTo = appBaseUrl ? `${appBaseUrl}/auth/reset-password` : undefined
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
 

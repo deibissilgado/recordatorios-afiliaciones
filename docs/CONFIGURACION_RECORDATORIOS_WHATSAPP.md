@@ -44,10 +44,15 @@ Configura estas variables en el proyecto de Vercel:
 Para que funcione `Recuperar clave`:
 
 1. En Supabase ve a `Authentication > URL Configuration`.
-2. Define `Site URL` con el dominio de Vercel (o localhost en desarrollo).
+2. Define `Site URL` con el dominio de producción de Vercel.
 3. Agrega como redirect permitido:
    - `https://TU_DOMINIO/auth/reset-password`
    - `http://localhost:3000/auth/reset-password` (desarrollo)
+4. En Vercel define `NEXT_PUBLIC_APP_URL=https://TU_DOMINIO`.
+
+Nota importante:
+- Si `redirectTo` no coincide con una URL permitida, Supabase hace fallback a `Site URL`.
+- Si `Site URL` está en `localhost`, el correo puede enviarte a `localhost` incluso en producción.
 
 ## 4) Programar ejecución automática (Vercel Cron)
 
