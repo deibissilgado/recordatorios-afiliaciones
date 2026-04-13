@@ -1,16 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { normalizeWhatsappNumber, sendWhatsappTwilio } from '@/lib/twilio'
 
 type PendienteWhatsapp = {
   id: string
   telefono: string | null
   mensaje: string | null
-}
-
-type TwilioSendResult = {
-  ok: boolean
-  sid?: string
-  error?: string
 }
 
 export const runtime = 'nodejs'
@@ -24,73 +19,6 @@ function bogotaToday(): string {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date())
-}
-
-function normalizeWhatsappNumber(rawPhone: string | null): string | null {
-  if (!rawPhone) return null
-
-  // Limpia espacios, signos y caracteres no numéricos antes de validar.
-  const digits = rawPhone.replace(/\D/g, '')
-
-  if (digits.length === 10) {
-    return `whatsapp:+57${digits}`
-  }
-
-  if (digits.length === 12 && digits.startsWith('57')) {
-    return `whatsapp:+${digits}`
-  }
-
-  if (digits.length >= 8 && digits.length <= 15) {
-    return `whatsapp:+${digits}`
-  }
-
-  return null
-}
-
-async function sendWhatsappTwilio(to: string, body: string): Promise<TwilioSendResult> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const from = process.env.TWILIO_WHATSAPP_FROM
-
-  if (!accountSid || !authToken || !from) {
-    return {
-      ok: false,
-      error: 'Faltan variables TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN o TWILIO_WHATSAPP_FROM.',
-    }
-  }
-
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
-
-  const payload = new URLSearchParams({
-    From: from,
-    To: to,
-    Body: body,
-  })
-
-  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64')
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: payload,
-  })
-
-  const data = (await response.json()) as { sid?: string; message?: string; code?: number }
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      error: data.message ?? `Twilio respondió ${response.status}`,
-    }
-  }
-
-  return {
-    ok: true,
-    sid: data.sid,
-  }
 }
 
 function getAdminSupabase() {

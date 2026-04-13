@@ -8,6 +8,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 type AuthMode = 'login' | 'signup' | 'recover'
 type Seccion = 'usuario' | 'clientes'
 type ClientesVista = 'lista' | 'crear' | 'editar'
+type TipoNotificacion = 'arl' | 'pago'
 
 type Cliente = {
   id: string
@@ -22,7 +23,7 @@ type AfiliacionEdit = {
   fecha_inicio: string | null
   fecha_fin: string | null
   estado: string | null
-  dia_recordatorio: number | null
+  tipo_notificacion: TipoNotificacion | null
   plantilla_mensaje: string | null
   whatsapp_activo: boolean | null
 }
@@ -49,7 +50,7 @@ function getAppBaseUrl() {
 
 function columnasNuevasNoExisten(message: string) {
   return (
-    message.includes('dia_recordatorio') ||
+    message.includes('tipo_notificacion') ||
     message.includes('plantilla_mensaje') ||
     message.includes('whatsapp_activo')
   )
@@ -118,7 +119,7 @@ export default function Home() {
   const [nombre, setNombre] = useState('')
   const [documento, setDocumento] = useState('')
   const [telefono, setTelefono] = useState('')
-  const [diaRecordatorio, setDiaRecordatorio] = useState(20)
+  const [tipoNotificacion, setTipoNotificacion] = useState<TipoNotificacion>('arl')
   const [plantillaMensaje, setPlantillaMensaje] = useState(PLANTILLA_POR_DEFECTO)
   const [fechaInicioAfiliacion, setFechaInicioAfiliacion] = useState(hoyIsoDate)
   const [fechaFinAfiliacion, setFechaFinAfiliacion] = useState('')
@@ -132,7 +133,8 @@ export default function Home() {
   const [editNombre, setEditNombre] = useState('')
   const [editDocumento, setEditDocumento] = useState('')
   const [editTelefono, setEditTelefono] = useState('')
-  const [editDiaRecordatorio, setEditDiaRecordatorio] = useState(20)
+  const [editTipoNotificacion, setEditTipoNotificacion] =
+    useState<TipoNotificacion>('arl')
   const [editPlantillaMensaje, setEditPlantillaMensaje] = useState(PLANTILLA_POR_DEFECTO)
   const [editFechaInicioAfiliacion, setEditFechaInicioAfiliacion] = useState(hoyIsoDate)
   const [editFechaFinAfiliacion, setEditFechaFinAfiliacion] = useState('')
@@ -192,7 +194,7 @@ export default function Home() {
     setNombre('')
     setDocumento('')
     setTelefono('')
-    setDiaRecordatorio(20)
+    setTipoNotificacion('arl')
     setPlantillaMensaje(PLANTILLA_POR_DEFECTO)
     setFechaInicioAfiliacion(hoyIsoDate())
     setFechaFinAfiliacion('')
@@ -206,7 +208,7 @@ export default function Home() {
     setEditNombre('')
     setEditDocumento('')
     setEditTelefono('')
-    setEditDiaRecordatorio(20)
+    setEditTipoNotificacion('arl')
     setEditPlantillaMensaje(PLANTILLA_POR_DEFECTO)
     setEditFechaInicioAfiliacion(hoyIsoDate())
     setEditFechaFinAfiliacion('')
@@ -258,7 +260,7 @@ export default function Home() {
     // Intenta leer afiliación con columnas nuevas; si aún no existen, cae al modo básico.
     const avanzada = await supabase
       .from('afiliaciones')
-      .select('id,fecha_inicio,fecha_fin,estado,dia_recordatorio,plantilla_mensaje,whatsapp_activo')
+      .select('id,fecha_inicio,fecha_fin,estado,tipo_notificacion,plantilla_mensaje,whatsapp_activo')
       .eq('cliente_id', clienteId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -297,7 +299,7 @@ export default function Home() {
       fecha_inicio: filaBasica.fecha_inicio,
       fecha_fin: filaBasica.fecha_fin,
       estado: filaBasica.estado,
-      dia_recordatorio: 20,
+      tipo_notificacion: 'arl',
       plantilla_mensaje: PLANTILLA_POR_DEFECTO,
       whatsapp_activo: true,
     } satisfies AfiliacionEdit
@@ -409,7 +411,7 @@ export default function Home() {
       setEditNombre(cliente.nombre)
       setEditDocumento(cliente.documento)
       setEditTelefono(cliente.telefono ?? '')
-      setEditDiaRecordatorio(afiliacion?.dia_recordatorio ?? 20)
+      setEditTipoNotificacion(afiliacion?.tipo_notificacion ?? 'arl')
       setEditPlantillaMensaje(afiliacion?.plantilla_mensaje ?? PLANTILLA_POR_DEFECTO)
       setEditFechaInicioAfiliacion(afiliacion?.fecha_inicio ?? hoyIsoDate())
       setEditFechaFinAfiliacion(afiliacion?.fecha_fin ?? '')
@@ -458,7 +460,7 @@ export default function Home() {
     const { error: errorAfiliacion } = await supabase.from('afiliaciones').insert([
       {
         ...baseAfiliacion,
-        dia_recordatorio: diaRecordatorio,
+        tipo_notificacion: tipoNotificacion,
         plantilla_mensaje: plantillaMensaje,
         whatsapp_activo: whatsappActivo,
       },
@@ -541,7 +543,7 @@ export default function Home() {
 
     const afiliacionDataCompleta = {
       ...afiliacionDataBasica,
-      dia_recordatorio: editDiaRecordatorio,
+      tipo_notificacion: editTipoNotificacion,
       plantilla_mensaje: editPlantillaMensaje,
       whatsapp_activo: editWhatsappActivo,
     }
@@ -576,7 +578,7 @@ export default function Home() {
         }
 
         setClientesMessage(
-          'Cliente actualizado. Aplica la migración SQL para editar día de recordatorio y plantilla.'
+          'Cliente actualizado. Aplica la migración SQL para editar tipo de notificación y plantilla.'
         )
       } else {
         setClientesMessage('Cliente y afiliación actualizados correctamente.')
@@ -766,17 +768,19 @@ export default function Home() {
               required
             />
 
-            <label htmlFor="diaRecordatorio">Día de recordatorio mensual</label>
-            <input
-              id="diaRecordatorio"
-              type="number"
-              min={1}
-              max={28}
+            <label htmlFor="tipoNotificacion">Tipo de notificación</label>
+            <select
+              id="tipoNotificacion"
               className="input"
-              value={diaRecordatorio}
-              onChange={(event) => setDiaRecordatorio(Number(event.target.value) || 20)}
-              required
-            />
+              value={tipoNotificacion}
+              onChange={(event) => setTipoNotificacion(event.target.value as TipoNotificacion)}
+            >
+              <option value="arl">Afiliación ARL (2 días antes del vencimiento del siguiente mes)</option>
+              <option value="pago">Pago seguridad social (mismo día del siguiente mes)</option>
+            </select>
+            <p className="hint-text">
+              El sistema calcula automáticamente la fecha de envío usando la fecha de inicio.
+            </p>
 
             <label htmlFor="fechaInicioAfiliacion">Fecha inicio afiliación</label>
             <input
@@ -881,17 +885,19 @@ export default function Home() {
               required
             />
 
-            <label htmlFor="editDiaRecordatorio">Día de recordatorio mensual</label>
-            <input
-              id="editDiaRecordatorio"
-              type="number"
-              min={1}
-              max={28}
+            <label htmlFor="editTipoNotificacion">Tipo de notificación</label>
+            <select
+              id="editTipoNotificacion"
               className="input"
-              value={editDiaRecordatorio}
-              onChange={(event) => setEditDiaRecordatorio(Number(event.target.value) || 20)}
-              required
-            />
+              value={editTipoNotificacion}
+              onChange={(event) => setEditTipoNotificacion(event.target.value as TipoNotificacion)}
+            >
+              <option value="arl">Afiliación ARL (2 días antes del vencimiento del siguiente mes)</option>
+              <option value="pago">Pago seguridad social (mismo día del siguiente mes)</option>
+            </select>
+            <p className="hint-text">
+              El sistema calculará automáticamente la fecha de envío según el tipo y la fecha de inicio.
+            </p>
 
             <label htmlFor="editFechaInicio">Fecha inicio afiliación</label>
             <input

@@ -8,12 +8,13 @@ Arquitectura objetivo:
 ## 1) Aplicar migración en Supabase
 
 1. Abre Supabase SQL Editor.
-2. Ejecuta el script:
+2. Ejecuta los scripts en este orden:
    - `supabase/sql/001_recordatorios_whatsapp.sql`
+   - `supabase/sql/002_tipos_notificacion_arl_pago.sql`
 
-Qué agrega esta migración:
+Qué agregan estas migraciones:
 - Nuevas columnas en `afiliaciones` para programación mensual:
-  - `dia_recordatorio` (1-28)
+  - `tipo_notificacion` (`arl` o `pago`)
   - `plantilla_mensaje`
   - `whatsapp_activo`
   - `timezone`
@@ -31,6 +32,7 @@ Configura estas variables en el proyecto de Vercel:
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_WHATSAPP_FROM` (ejemplo: `whatsapp:+14155238886`)
+- `TWILIO_PHONE` (opcional, alternativa a `TWILIO_WHATSAPP_FROM`)
 
 ## 3) Configurar Twilio WhatsApp
 
@@ -38,6 +40,14 @@ Configura estas variables en el proyecto de Vercel:
 2. Activa sandbox o número de WhatsApp Business.
 3. Guarda SID, token y remitente (`From`) en variables de entorno.
 4. Verifica que los números destino puedan recibir mensajes en tu configuración (sandbox requiere opt-in).
+
+Dónde encontrar cada dato en Twilio:
+- `TWILIO_ACCOUNT_SID`: `Twilio Console > Account Dashboard > Account SID`.
+- `TWILIO_AUTH_TOKEN`: `Twilio Console > Account Dashboard > Auth Token` (botón Show).
+- `TWILIO_WHATSAPP_FROM`:
+  - Sandbox: `Messaging > Try it out > Send a WhatsApp message` (valor `From`, normalmente `whatsapp:+14155238886`).
+  - Producción: el remitente WhatsApp aprobado en tu cuenta (también en formato `whatsapp:+...`).
+- `TWILIO_PHONE` (si lo usas): número Twilio en `Phone Numbers > Manage > Active numbers` (ejemplo `+1...`).
 
 ## 3.1) Recuperación de contraseña (Supabase Auth)
 
@@ -61,7 +71,7 @@ Crea un cron diario (ejemplo 9:00 AM Bogotá) que llame:
 - `GET /api/cron/recordatorios`
 - Header: `Authorization: Bearer <CRON_SECRET>`
 
-Recomendación: ejecutarlo diario. La base solo crea recordatorios cuando coincida `dia_recordatorio`, por ejemplo el 20 de cada mes.
+Recomendación: ejecutarlo diario. La base crea recordatorios automáticamente según `tipo_notificacion` y `fecha_inicio`.
 
 ## 5) Prueba manual
 
@@ -77,12 +87,27 @@ La respuesta JSON devuelve:
 - `errores`
 - `telefonosInvalidos`
 
+Prueba directa de envío (sin esperar cron):
+
+- `POST /api/enviar-sms`
+- Header: `Authorization: Bearer <CRON_SECRET>`
+- Body JSON:
+
+```json
+{
+  "telefono": "3001234567",
+  "mensaje": "Prueba real de WhatsApp desde recordatorios"
+}
+```
+
 ## 6) Uso desde la app
 
 El formulario de crear cliente ya está preparado para:
 - Guardar cliente.
 - Crear afiliación activa.
-- Definir día de recordatorio (ej. 20).
+- Definir tipo de notificación:
+  - `Afiliación ARL`: envía 2 días antes del vencimiento del siguiente mes.
+  - `Pago seguridad social`: envía el mismo día del siguiente mes.
 - Definir plantilla de mensaje.
 
 Variables de plantilla soportadas:

@@ -6,6 +6,7 @@ La guía completa de arquitectura y despliegue para `Vercel + Supabase + Twilio`
 
 - `docs/CONFIGURACION_RECORDATORIOS_WHATSAPP.md`
 - `supabase/sql/001_recordatorios_whatsapp.sql`
+- `supabase/sql/002_tipos_notificacion_arl_pago.sql`
 
 ## Getting Started
 
