@@ -28,8 +28,28 @@ type AfiliacionEdit = {
   whatsapp_activo: boolean | null
 }
 
-const PLANTILLA_POR_DEFECTO =
-  'Hola {{nombre}}, recuerda renovar tu afiliación. Fecha sugerida: {{fecha}}.'
+const PLANTILLA_POR_TIPO: Record<TipoNotificacion, string> = {
+  arl: 'Hola {{nombre}}, recuerda renovar tu afiliación. Fecha sugerida: {{fecha}}.',
+  pago: 'Hola {{nombre}}, este es un recordatorio de pago de seguridad social. Fecha sugerida: {{fecha}}.',
+}
+
+const PLANTILLA_POR_DEFECTO = PLANTILLA_POR_TIPO.arl
+const PLANTILLAS_PREDEFINIDAS = Object.values(PLANTILLA_POR_TIPO)
+
+function sincronizarPlantillaSegunTipo(
+  plantillaActual: string,
+  tipoNotificacion: TipoNotificacion
+): string {
+  const trimmed = plantillaActual.trim()
+
+  // Si el texto actual es una plantilla predeterminada, lo cambia al texto del nuevo tipo.
+  if (PLANTILLAS_PREDEFINIDAS.includes(trimmed)) {
+    return PLANTILLA_POR_TIPO[tipoNotificacion]
+  }
+
+  // Si el usuario escribió una plantilla personalizada, se respeta.
+  return plantillaActual
+}
 
 function hoyIsoDate() {
   return new Date().toISOString().slice(0, 10)
@@ -411,8 +431,9 @@ export default function Home() {
       setEditNombre(cliente.nombre)
       setEditDocumento(cliente.documento)
       setEditTelefono(cliente.telefono ?? '')
-      setEditTipoNotificacion(afiliacion?.tipo_notificacion ?? 'arl')
-      setEditPlantillaMensaje(afiliacion?.plantilla_mensaje ?? PLANTILLA_POR_DEFECTO)
+      const tipoAfiliacion = afiliacion?.tipo_notificacion ?? 'arl'
+      setEditTipoNotificacion(tipoAfiliacion)
+      setEditPlantillaMensaje(afiliacion?.plantilla_mensaje ?? PLANTILLA_POR_TIPO[tipoAfiliacion])
       setEditFechaInicioAfiliacion(afiliacion?.fecha_inicio ?? hoyIsoDate())
       setEditFechaFinAfiliacion(afiliacion?.fecha_fin ?? '')
       setEditEstadoAfiliacion(afiliacion?.estado ?? 'activa')
@@ -773,7 +794,11 @@ export default function Home() {
               id="tipoNotificacion"
               className="input"
               value={tipoNotificacion}
-              onChange={(event) => setTipoNotificacion(event.target.value as TipoNotificacion)}
+              onChange={(event) => {
+                const nuevoTipo = event.target.value as TipoNotificacion
+                setTipoNotificacion(nuevoTipo)
+                setPlantillaMensaje((prev) => sincronizarPlantillaSegunTipo(prev, nuevoTipo))
+              }}
             >
               <option value="arl">Afiliación ARL (2 días antes del vencimiento del siguiente mes)</option>
               <option value="pago">Pago seguridad social (mismo día del siguiente mes)</option>
@@ -890,7 +915,11 @@ export default function Home() {
               id="editTipoNotificacion"
               className="input"
               value={editTipoNotificacion}
-              onChange={(event) => setEditTipoNotificacion(event.target.value as TipoNotificacion)}
+              onChange={(event) => {
+                const nuevoTipo = event.target.value as TipoNotificacion
+                setEditTipoNotificacion(nuevoTipo)
+                setEditPlantillaMensaje((prev) => sincronizarPlantillaSegunTipo(prev, nuevoTipo))
+              }}
             >
               <option value="arl">Afiliación ARL (2 días antes del vencimiento del siguiente mes)</option>
               <option value="pago">Pago seguridad social (mismo día del siguiente mes)</option>

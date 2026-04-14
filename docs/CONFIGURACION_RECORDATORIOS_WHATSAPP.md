@@ -11,6 +11,8 @@ Arquitectura objetivo:
 2. Ejecuta los scripts en este orden:
    - `supabase/sql/001_recordatorios_whatsapp.sql`
    - `supabase/sql/002_tipos_notificacion_arl_pago.sql`
+   - `supabase/sql/003_cleanup_dia_recordatorio.sql`
+   - `supabase/sql/004_actualizar_plantilla_pago_seguridad_social.sql`
 
 Qué agregan estas migraciones:
 - Nuevas columnas en `afiliaciones` para programación mensual:
@@ -18,6 +20,7 @@ Qué agregan estas migraciones:
   - `plantilla_mensaje`
   - `whatsapp_activo`
   - `timezone`
+- Se elimina `dia_recordatorio` porque ya no se usa en el modelo actual.
 - Nuevas columnas en `recordatorios` para trazabilidad de envío.
 - Función `crear_recordatorios_del_dia(date)`.
 - Vista `recordatorios_pendientes_whatsapp`.
